@@ -4,5 +4,5 @@ import com.tmobile.tictactoe.entity.Player;
 
 public interface PlayerService {
 
-    public Player registerPlayer(String player) throws Exception;
+    public Player registerPlayer(String player);
 }

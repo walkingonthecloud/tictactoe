@@ -2,6 +2,7 @@ package com.tmobile.tictactoe.impl;
 
 import com.tmobile.tictactoe.api.PlayerService;
 import com.tmobile.tictactoe.entity.Player;
+import com.tmobile.tictactoe.exception.TicTacToeException;
 import com.tmobile.tictactoe.repo.PlayerRepo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,7 +21,7 @@ public class PlayerServiceImpl implements PlayerService {
     public PlayerServiceImpl(){};
 
     @Override
-    public Player registerPlayer(String player) throws Exception {
+    public Player registerPlayer(String player) {
 
         logger.info("Request received to register player {}", player);
 
@@ -36,7 +37,7 @@ public class PlayerServiceImpl implements PlayerService {
         catch (Exception e)
         {
             logger.error("Exception while registering Player {}", player);
-            throw new Exception(e);
+            throw new TicTacToeException(e.getMessage());
         }
         return playerRec;
     }

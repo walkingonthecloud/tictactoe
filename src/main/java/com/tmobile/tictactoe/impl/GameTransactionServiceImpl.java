@@ -6,9 +6,11 @@ import com.tmobile.tictactoe.dto.CreateMoveRequestDTO;
 import com.tmobile.tictactoe.dto.CreateMoveResponseDTO;
 import com.tmobile.tictactoe.entity.Game;
 import com.tmobile.tictactoe.entity.GameTransaction;
+import com.tmobile.tictactoe.exception.TicTacToeException;
 import com.tmobile.tictactoe.repo.GameRepo;
 import com.tmobile.tictactoe.repo.GameTransactionRepo;
 import com.tmobile.tictactoe.util.GameStatus;
+import lombok.Builder;
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,15 +39,15 @@ public class GameTransactionServiceImpl implements GameTransactionService {
 
     @Override
     @Transactional
-    public Game createGame(CreateGameRequestDTO dto) throws Exception{
+    public Game createGame(CreateGameRequestDTO dto) {
 
         logger.info("Request received to create a game with details {}", dto);
 
         Game game = gameRepo.findByPlayer1AndPlayer2(dto.getPlayer1(), dto.getPlayer2());
-        if (Objects.nonNull(game))
+        if (Objects.nonNull(game) && game.getGameStatus().equals(GameStatus.IN_PROGRESS.name()))
         {
             logger.error("Game already in progress b/w players: {}", game);
-            throw new Exception("Game already in progress b/w players: " + game.toString());
+            throw new TicTacToeException("Game already in progress b/w players: " + game.toString());
         }
 
         game = new Game();
@@ -61,20 +63,20 @@ public class GameTransactionServiceImpl implements GameTransactionService {
         catch (Exception e)
         {
             logger.error("Exception while creating game {}", game);
-            throw new Exception(e);
+            throw new TicTacToeException(e.getMessage());
         }
         return game;
     }
 
     @Override
-    public Game concedeGame(String player) throws Exception {
+    public Game concedeGame(String player) {
         logger.info("Request received to concede game from {}", player);
 
         Game game = gameRepo.findByParticipatingPlayer(player, GameStatus.IN_PROGRESS.name());
         if (Objects.isNull(game))
         {
             logger.error("No game in-progress for player: {}", player);
-            throw new Exception("No game in-progress for player: " + player);
+            throw new TicTacToeException("No game in-progress for player: " + player);
         }
 
         try{
@@ -85,26 +87,39 @@ public class GameTransactionServiceImpl implements GameTransactionService {
         catch (Exception e)
         {
             logger.error("Exception while conceding game for player {}", player);
-            throw new Exception(e);
+            throw new TicTacToeException(e.getMessage());
         }
         return game;
     }
 
     @Override
-    public CreateMoveResponseDTO createMove(CreateMoveRequestDTO moveRequest) throws Exception {
+    public List<Game> listGames() {
+        logger.info("List Games...");
+        return gameRepo.findAll();
+    }
+
+    @Override
+    public List<GameTransaction> findGameTransactionsByGameId(String gameId)
+    {
+        logger.info("Finding game transactions by gameId: {}", gameId);
+        return gameTransactionRepo.findByGameId(gameId);
+    }
+
+    @Override
+    public CreateMoveResponseDTO createMove(CreateMoveRequestDTO moveRequest) {
         logger.info("Request received to move with details {}", moveRequest);
 
         Game game = gameRepo.findByParticipatingPlayer(moveRequest.getPlayer(), GameStatus.IN_PROGRESS.name());
         if (Objects.isNull(game))
         {
             logger.error("No game in-progress for player {}, cannot make the move", moveRequest.getPlayer());
-            throw new Exception("No game in-progress, cannot make the move for player: " + moveRequest.getPlayer());
+            throw new TicTacToeException("No game in-progress, cannot make the move for player: " + moveRequest.getPlayer());
         }
 
         if (!game.getWhooseMove().equals(StringUtils.EMPTY) && !game.getWhooseMove().equals(moveRequest.getPlayer()))
         {
             logger.error("It is not player {}'s move", moveRequest.getPlayer());
-            throw new Exception("It is not the turn of player:" + moveRequest.getPlayer());
+            throw new TicTacToeException("It is not the turn of player:" + moveRequest.getPlayer());
         }
 
         List<GameTransaction> transactions = gameTransactionRepo.findByGameId(moveRequest.getGameId());
@@ -123,14 +138,14 @@ public class GameTransactionServiceImpl implements GameTransactionService {
         if (countOfMoves == 3)
         {
             logger.error("Player {} already completed 3 moves", moveRequest.getPlayer());
-            throw new Exception("Already 3 moves completed by the player: " + moveRequest.getPlayer());
+            throw new TicTacToeException("Already 3 moves completed by the player: " + moveRequest.getPlayer());
         }
 
         if (!CollectionUtils.isEmpty(transactions)) {
             GameTransaction lastTransaction = transactions.get(0);
             if (lastTransaction.getPlayer().equals(moveRequest.getPlayer())) {
                 logger.error("It is not now the turn of player: {}", moveRequest.getPlayer());
-                throw new Exception("It is not now the turn of player: " + moveRequest.getPlayer());
+                throw new TicTacToeException("It is not now the turn of player: " + moveRequest.getPlayer());
             }
         }
 
@@ -143,7 +158,7 @@ public class GameTransactionServiceImpl implements GameTransactionService {
         logger.info("Successfully created move for player {}", moveRequest.getPlayer());
 
         CreateMoveResponseDTO responseDTO = CreateMoveResponseDTO.builder().gameId(moveRequest.getGameId())
-                .player(moveRequest.getPlayer()).result(evaluateWinnerAfterMove(moveRequest)).build();
+                .player(moveRequest.getPlayer()).move(moveRequest.getMove()).result(evaluateWinnerAfterMove(moveRequest)).build();
         logger.info("Response DTO for move is {}", responseDTO);
 
         if (responseDTO.getResult().equals("Won"))
@@ -164,12 +179,12 @@ public class GameTransactionServiceImpl implements GameTransactionService {
         return responseDTO;
     }
 
-    private void validateMove(List<GameTransaction> transactions, CreateMoveRequestDTO dto) throws Exception {
+    private void validateMove(List<GameTransaction> transactions, CreateMoveRequestDTO dto) {
         List<String> distincMoves = transactions.stream().map(GameTransaction::getMove).distinct().collect(Collectors.toList());
         if (distincMoves.contains(dto.getMove()))
         {
             logger.error("Move request {} is invalid. Position not free.", dto.toString());
-            throw new Exception("Position not free. Move request " + dto.getMove() + " not valid");
+            throw new TicTacToeException("Position not free. Move request " + dto.getMove() + " not valid");
         }
         else
             logger.info("Move request {} is Valid. Proceeding to persist...", dto.toString());
