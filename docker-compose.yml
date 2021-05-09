@@ -1,0 +1,51 @@
+version: '3.3'
+
+services:
+  db:
+    image: mysql:latest
+    container_name: tictactoe_db
+##    command: bash -c "--default-authentication-plugin=mysql_native_password && --security-opt seccomp=unconfined"
+    volumes:
+      - db_data:/var/lib/mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: my-secret-pw
+      MYSQL_DATABASE: tictactoe
+      MYSQL_USER: tictactoe
+      MYSQL_PASSWORD: tictactoe
+    ports:
+      - "3306:3306"
+    expose:
+      # Opens port 3306 on the container
+      - "3306"
+
+  application:
+    image: tictactoe:latest
+    container_name: tictactoe
+    restart: always
+    depends_on:
+      - "db"
+    ports:
+      # <Port exposed> : < MySQL Port running inside container>
+      - "8081:8081"
+      - "8089:8089"
+    expose:
+      # Opens port 3306 on the container
+      - "8081"
+
+#  rabbitmq:
+#    image: rabbitmq:3.8-management
+#    container_name: rabbitmq
+#    hostname: rabbitmq
+#    volumes:
+#      - rabbitmqdata:/var/lib/rabbitmq
+#    ports:
+#      - "5672:5672"
+#      - "15672:15672"
+#    environment:
+#      - RABBITMQ_DEFAULT_USER=guest
+#      - RABBITMQ_DEFAULT_PASS=guest
+
+volumes:
+  db_data:
+#  rabbitmqdata:
