@@ -4,7 +4,8 @@ services:
   db:
     image: mysql:latest
     container_name: tictactoe_db
-##    command: bash -c "--default-authentication-plugin=mysql_native_password && --security-opt seccomp=unconfined"
+#    command: bash -c "--default-authentication-plugin=mysql_native_password && --security-opt seccomp=unconfined"
+    command: --default-authentication-plugin=mysql_native_password
     volumes:
       - db_data:/var/lib/mysql
     restart: always
